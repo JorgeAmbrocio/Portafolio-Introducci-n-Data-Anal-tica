@@ -16,6 +16,7 @@ library(arules)
 library(rpart)
 library(rpart.plot)
 library(tidyr)
+library(stringr)
 ```
 
 # Obtención de conjuntos de datos
@@ -31,7 +32,7 @@ dPlayers_20 <- read.csv("players_20.csv")
 ```
 
 
-# Discovery
+# Data Analysis
 Realizar un Canvas Data Product con la información básica de FIFA, si tiene que asumir algo, asumalo.
 
 ## Descripción de columnas
@@ -181,6 +182,8 @@ print(nrow(dPlayers_19))
 print(nrow(dPlayers_20))
 
 ```
+
+# Data Cleaning
 ## Unificación de los conjuntos de datos
 ```{r}
 # Añadir la columna año a cada dataset
@@ -214,6 +217,175 @@ head(dPlayers)
 
 ```
 
+## Obtener cantidad de celdas nulas por columna
+```{r}
+cnt_filas <- nrow(dPlayers)
+
+# Conteo de celdas con valores NA por cada columna
+na_counts <- dPlayers %>%
+  summarise(across(everything(), ~ sum(is.na(.)))) %>%
+  pivot_longer(cols = everything(), names_to = "Column", values_to = "NA_Count") %>%
+  mutate(PERCENT = NA_Count / cnt_filas ) %>%
+  arrange(desc(PERCENT))
+
+
+na_counts
+
+
+```
+
+### Omitir columnas con más del 80% de valores faltantes
+```{r}
+# Ignorar las columnas que tienen más de 80% de valores faltantes
+dPlayers <- dPlayers %>%
+  select(-nation_jersey_number, - gk_diving, -gk_handling, -gk_kicking, - gk_reflexes, -gk_speed, -gk_positioning)
+
+```
+
+### Para las columnas con 11% de faltantes, se rellenan con el valor mediana de la característica
+```{r}
+# Obtener valor mediana de la columna
+m_shooting <- median(dPlayers$shooting, na.rm = TRUE)
+m_passing <- median(dPlayers$passing, na.rm = TRUE)
+m_dribbling <- median(dPlayers$dribbling, na.rm = TRUE)
+m_defending <- median(dPlayers$defending, na.rm = TRUE)
+m_physic <- median(dPlayers$physic, na.rm = TRUE)
+
+# Llenar los valores na con el valor mediana de la característica
+dPlayers <- dPlayers %>%
+  mutate(shooting = ifelse(is.na(shooting),m_shooting, shooting)) %>%
+  mutate(passing = ifelse(is.na(passing),m_passing, passing)) %>%
+  mutate(dribbling = ifelse(is.na(dribbling),m_dribbling, dribbling)) %>%
+  mutate(defending = ifelse(is.na(defending),m_defending, defending)) %>%
+  mutate(physic = ifelse(is.na(physic),m_physic, physic)) 
+
+
+
+```
+
+
+## Columnas texto que deberían ser numéricas
+```{r}
+# Construir una función que separa por isngo más o menos, caste ambas partes de la operación aritmética y luego la ejecuta
+transform_numeric <- function(column) {
+  base_value <- str_extract(column, "^-?\\d+") %>% as.numeric()
+  modifier <- str_extract(column, "[+-]\\d+$") %>% as.numeric()
+  result <- base_value + ifelse(is.na(modifier), 0, modifier) # Maneja casos sin modificador
+  return(result)
+}
+```
+
+### Recorrer todas las columnas con valores de la forma d [+|-] d, para castearlos y operarlos
+```{r}
+
+# Aplicar función para transformar las columnas 
+cols_to_transform <- c(
+  "attacking_crossing",
+  "attacking_finishing",
+  "attacking_heading_accuracy",
+  "attacking_short_passing",
+  "attacking_volleys",
+  "skill_dribbling",
+  "skill_curve",
+  "skill_fk_accuracy",
+  "skill_long_passing",
+  "skill_ball_control",
+  "movement_acceleration",
+  "movement_sprint_speed",
+  "movement_agility",
+  "movement_reactions",
+  "movement_balance",
+  "power_shot_power",
+  "power_jumping",
+  "power_stamina",
+  "power_strength",
+  "power_long_shots",
+  "mentality_aggression",
+  "mentality_interceptions",
+  "mentality_positioning",
+  "mentality_vision",
+  "mentality_penalties",
+  "mentality_composure",
+  "defending_marking",
+  "defending_standing_tackle",
+  "defending_sliding_tackle",
+  "goalkeeping_diving",
+  "goalkeeping_handling",
+  "goalkeeping_kicking",
+  "goalkeeping_positioning",
+  "goalkeeping_reflexes"
+)
+
+dPlayers <- dPlayers %>%
+  mutate(across(all_of(cols_to_transform), transform_numeric, .names = "numeric_{col}"))
+
+# Mostrar los primeros resultados
+head(dPlayers)
+
+
+```
+
+
+### Eliminar las columnas que están en formato texto cuando ya se añadieron como número
+```{r}
+# Eliminar las columnas que fueron transformadas
+dPlayers <- dPlayers %>%
+  select(-all_of(cols_to_transform))
+
+```
+
+
+
+# Data Wrangling
+Se revisa nuevamente el conjunto de datos para la construcción de nuevas variables
+```{r}
+
+head(dPlayers)
+summary(dPlayers)
+
+
+```
+## Agrupaciones
+```{r}
+
+# Agrupación de observaciones por rangos de edad
+dPlayers <- dPlayers %>%
+  mutate(age_group = case_when(
+    age < 20 ~ "Under 20",
+    age >= 20 & age <= 30 ~ "20-30",
+    age > 30 ~ "Over 30"
+  ))
+
+```
+
+```{r}
+# Agrupación porrango de valor de ingresos mensuales
+dPlayers <- dPlayers %>%
+  mutate(value_category = case_when(
+    value_eur < 1000000 ~ "Low",
+    value_eur >= 1000000 & value_eur < 10000000 ~ "Medium",
+    value_eur >= 10000000 ~ "High"
+  ))
+```
+
+## Crear identificador a nivel nacionalidad y club
+```{r}
+# Crear un identificador único basado en la nacionalidad y club
+dPlayers <- dPlayers %>%
+  mutate(unique_player_id = paste(nationality, club, sep = "_"))
+```
+
+## Indicar la cantidad de años que el jugador lleva en el club
+```{r}
+# Calcular la cantidad de años desde que el jugador se unió a su club
+# Convertir 'joined' a tipo fecha y calcular la antigüedad del jugador en el club
+dPlayers <- dPlayers %>%
+  mutate(joined = as.Date(joined, format = "%Y-%m-%d"), 
+         years_at_club = as.numeric(format(Sys.Date(), "%Y")) - as.numeric(format(joined, "%Y")))
+```
+
+
+# Data Transformation
 ## Descripción de datos por características específicas
 ```{r}
 # Agrupación de jugadores por nacionalidad con conteo de jugadores ordenado de mayor a menor
@@ -229,5 +401,39 @@ jugadores_nacionalidad_anio <- dPlayers %>%
   ungroup() %>%
   pivot_wider(names_from = anio, values_from = count, values_fill = 0)
 
+jugadores_nacionalidad_anio
+```
+
+### ejecución de kmeans para categorizar a los jugadores por año
+```{r}
+
+md_overall <- median(dPlayers$overall, na.rm = TRUE)
+md_pace <- median(dPlayers$pace, na.rm = TRUE)
+
+dPlayers_km <- dPlayers %>%
+  select(overall, pace) %>%
+  mutate(overall = ifelse(is.na(overall), md_overall, overall ))
+
+dPlayers_km <- dPlayers_km %>%
+  mutate(pace = ifelse(is.na(pace), md_pace, pace ))
+
+
+clusters <- kmeans(dPlayers_km, centers = 3)
+
+dPlayers <- dPlayers %>%
+  mutate(cluster_group = clusters$cluster)
+
+```
+
+
+### Normalización de las columnas overall, potential, pace y shooting
+```{r}
+
+cols_to_normalize <- c("overall", "potential", "pace", "shooting")
+
+dPlayers <- dPlayers %>%
+  mutate(across(all_of(cols_to_normalize), ~ (. - min(.)) / (max(.) - min(.))))
+
+head(dPlayers, 10)
 ```
 
