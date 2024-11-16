@@ -1,0 +1,233 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Instalación de librerías faltantes
+```{r}
+install.packages("tidyr")
+```
+
+# Obtención de librerías
+```{r}
+library(dplyr)
+library(ggplot2)
+library(arules)
+library(rpart)
+library(rpart.plot)
+library(tidyr)
+```
+
+# Obtención de conjuntos de datos
+```{r}
+
+dPlayers_15 <- read.csv("players_15.csv")
+dPlayers_16 <- read.csv("players_16.csv")
+dPlayers_17 <- read.csv("players_17.csv")
+dPlayers_18 <- read.csv("players_18.csv")
+dPlayers_19 <- read.csv("players_19.csv")
+dPlayers_20 <- read.csv("players_20.csv")
+
+```
+
+
+# Discovery
+Realizar un Canvas Data Product con la información básica de FIFA, si tiene que asumir algo, asumalo.
+
+## Descripción de columnas
+
+| Columna                   | Descripción                                                                                       | Tipo de dato       |
+|---------------------------|---------------------------------------------------------------------------------------------------|--------------------|
+| sofifa_id                 | Identificador único del jugador en la base de datos SoFIFA                                       | Entero             |
+| player_url                | URL al perfil del jugador en el sitio web SoFIFA                                                 | Cadena             |
+| short_name                | Nombre corto del jugador                                                                         | Cadena             |
+| long_name                 | Nombre completo del jugador                                                                      | Cadena             |
+| age                       | Edad del jugador                                                                                 | Entero             |
+| dob                       | Fecha de nacimiento del jugador                                                                  | Fecha              |
+| height_cm                 | Altura del jugador en centímetros                                                                | Entero             |
+| weight_kg                 | Peso del jugador en kilogramos                                                                   | Entero             |
+| nationality               | Nacionalidad del jugador                                                                         | Cadena             |
+| club                      | Club al que pertenece el jugador                                                                 | Cadena             |
+| overall                   | Calificación general del jugador                                                                 | Entero             |
+| potential                 | Potencial máximo del jugador                                                                     | Entero             |
+| value_eur                 | Valor de mercado del jugador en euros                                                            | Entero             |
+| wage_eur                  | Salario semanal del jugador en euros                                                             | Entero             |
+| player_positions          | Posiciones en las que el jugador puede jugar                                                     | Cadena             |
+| preferred_foot            | Pie preferido del jugador                                                                        | Cadena             |
+| international_reputation  | Reputación internacional (escala del 1 al 5)                                                     | Entero             |
+| weak_foot                 | Calificación del pie débil (escala del 1 al 5)                                                   | Entero             |
+| skill_moves               | Calificación de movimientos de habilidad (escala del 1 al 5)                                     | Entero             |
+| work_rate                 | Tasa de trabajo (ofensiva y defensiva)                                                           | Cadena             |
+| body_type                 | Tipo de cuerpo del jugador (e.g., Normal, Delgado, Musculoso)                                    | Cadena             |
+| real_face                 | Indica si el jugador tiene un rostro modelado realista en el juego                               | Cadena (Sí/No)     |
+| release_clause_eur        | Cláusula de rescisión del contrato en euros                                                      | Entero/Nulo        |
+| player_tags               | Etiquetas especiales que describen habilidades únicas del jugador                                | Cadena/Nulo        |
+| team_position             | Posición del jugador en el equipo actual                                                         | Cadena/Nulo        |
+| team_jersey_number        | Número en el dorsal del jugador en el club                                                       | Entero/Nulo        |
+| loaned_from               | Club del que el jugador está cedido (si aplica)                                                  | Cadena/Nulo        |
+| joined                    | Fecha en que el jugador se unió al club                                                          | Fecha/Nulo         |
+| contract_valid_until      | Año hasta el cual es válido el contrato                                                          | Entero/Nulo        |
+| nation_position           | Posición del jugador en la selección nacional                                                    | Cadena/Nulo        |
+| nation_jersey_number      | Número en el dorsal del jugador en la selección nacional                                         | Entero/Nulo        |
+| pace                      | Calificación de ritmo del jugador (velocidad)                                                    | Entero/Nulo        |
+| shooting                  | Calificación de disparo del jugador                                                              | Entero/Nulo        |
+| passing                   | Calificación de pase del jugador                                                                 | Entero/Nulo        |
+| dribbling                 | Calificación de regate del jugador                                                               | Entero/Nulo        |
+| defending                 | Calificación de defensa del jugador                                                              | Entero/Nulo        |
+| physic                    | Calificación de físico del jugador                                                               | Entero/Nulo        |
+| gk_diving                 | Calificación de salto del portero                                                                | Entero/Nulo        |
+| gk_handling               | Calificación de manejo del portero                                                               | Entero/Nulo        |
+| gk_kicking                | Calificación de saque del portero                                                                | Entero/Nulo        |
+| gk_reflexes               | Calificación de reflejos del portero                                                             | Entero/Nulo        |
+| gk_speed                  | Calificación de velocidad del portero                                                            | Entero/Nulo        |
+| gk_positioning            | Calificación de posicionamiento del portero                                                      | Entero/Nulo        |
+| player_traits             | Rasgos específicos del jugador                                                                   | Cadena/Nulo        |
+| attacking_crossing        | Calificación en centros del jugador                                                              | Entero/Nulo        |
+| attacking_finishing       | Calificación en definición del jugador                                                           | Entero/Nulo        |
+| attacking_heading_accuracy| Calificación de precisión de cabezazo                                                            | Entero/Nulo        |
+| attacking_short_passing   | Calificación de pase corto                                                                       | Entero/Nulo        |
+| attacking_volleys         | Calificación en volea                                                                            | Entero/Nulo        |
+| skill_dribbling           | Calificación de dribbling                                                                        | Entero/Nulo        |
+| skill_curve               | Calificación de curva                                                                            | Entero/Nulo        |
+| skill_fk_accuracy         | Calificación en precisión de tiro libre                                                          | Entero/Nulo        |
+| skill_long_passing        | Calificación en pase largo                                                                       | Entero/Nulo        |
+| skill_ball_control        | Calificación en control del balón                                                                | Entero/Nulo        |
+| movement_acceleration     | Calificación de aceleración                                                                      | Entero/Nulo        |
+| movement_sprint_speed     | Calificación de velocidad máxima                                                                 | Entero/Nulo        |
+| movement_agility          | Calificación de agilidad                                                                         | Entero/Nulo        |
+| movement_reactions        | Calificación de reacciones                                                                       | Entero/Nulo        |
+| movement_balance          | Calificación de balance                                                                          | Entero/Nulo        |
+| power_shot_power          | Calificación de potencia de disparo                                                              | Entero/Nulo        |
+| power_jumping             | Calificación de salto                                                                            | Entero/Nulo        |
+| power_stamina             | Calificación de resistencia                                                                      | Entero/Nulo        |
+| power_strength            | Calificación de fuerza                                                                           | Entero/Nulo        |
+| power_long_shots          | Calificación de tiros lejanos                                                                    | Entero/Nulo        |
+| mentality_aggression      | Calificación de agresividad                                                                      | Entero/Nulo        |
+| mentality_interceptions   | Calificación de intercepciones                                                                   | Entero/Nulo        |
+| mentality_positioning     | Calificación de posicionamiento ofensivo                                                         | Entero/Nulo        |
+| mentality_vision          | Calificación de visión                                                                           | Entero/Nulo        |
+| mentality_penalties       | Calificación en penales                                                                          | Entero/Nulo        |
+| mentality_composure       | Calificación de compostura                                                                       | Entero/Nulo        |
+| defending_marking         | Calificación de marcaje                                                                          | Entero/Nulo        |
+| defending_standing_tackle | Calificación de entrada normal                                                                   | Entero/Nulo        |
+| defending_sliding_tackle  | Calificación de entrada barrida                                                                  | Entero/Nulo        |
+| goalkeeping_diving        | Calificación de buceo del portero                                                                | Entero/Nulo        |
+| goalkeeping_handling      | Calificación de manejo del portero                                                               | Entero/Nulo        |
+| goalkeeping_kicking       | Calificación de saque del portero                                                                | Entero/Nulo        |
+| goalkeeping_positioning   | Calificación de posicionamiento del portero                                                     | Entero/Nulo        |
+| goalkeeping_reflexes      | Calificación de reflejos del portero                                                             | Entero/Nulo        |
+| ls, st, rs, lw, lf, cf, rf, rw, lam, cam, ram, lm, lcm, cm, rcm, rm, lwb, ldm, cdm, rdm, rwb, lb, lcb, cb, rcb, rb | Calificaciones de rendimiento en posiciones específicas en el campo | Entero/Nulo |
+
+Siendo los valores de las calificaciones en posiciones específicas relacionadas a los siguientes valores:
+
+| Posición | Descripción                                    |
+|----------|------------------------------------------------|
+| LS       | Delantero izquierdo (Left Striker)             |
+| ST       | Delantero centro (Striker)                     |
+| RS       | Delantero derecho (Right Striker)              |
+| LW       | Extremo izquierdo (Left Wing)                  |
+| LF       | Delantero izquierdo (Left Forward)             |
+| CF       | Delantero centro (Centre Forward)              |
+| RF       | Delantero derecho (Right Forward)              |
+| RW       | Extremo derecho (Right Wing)                   |
+| LAM      | Mediocampista ofensivo izquierdo (Left Attacking Midfielder) |
+| CAM      | Mediocampista ofensivo centro (Centre Attacking Midfielder) |
+| RAM      | Mediocampista ofensivo derecho (Right Attacking Midfielder) |
+| LM       | Mediocampista izquierdo (Left Midfielder)      |
+| LCM      | Mediocampista central izquierdo (Left Centre Midfielder) |
+| CM       | Mediocampista central (Centre Midfielder)      |
+| RCM      | Mediocampista central derecho (Right Centre Midfielder) |
+| RM       | Mediocampista derecho (Right Midfielder)       |
+| LWB      | Carrilero izquierdo (Left Wing Back)           |
+| LDM      | Mediocampista defensivo izquierdo (Left Defensive Midfielder) |
+| CDM      | Mediocampista defensivo central (Centre Defensive Midfielder) |
+| RDM      | Mediocampista defensivo derecho (Right Defensive Midfielder) |
+| RWB      | Carrilero derecho (Right Wing Back)            |
+| LB       | Lateral izquierdo (Left Back)                  |
+| LCB      | Defensa central izquierdo (Left Centre Back)   |
+| CB       | Defensa central (Centre Back)                  |
+| RCB      | Defensa central derecho (Right Centre Back)    |
+| RB       | Lateral derecho (Right Back)                   |
+
+
+## Descripción del conjunto de datos
+Podemos observar que todos los conjuntos cuentan el mísmo número de columnas y varían en la cantidad de fila; de igual forma, se identifica que el nombre de las columnas es igual en todos los datasets.
+```{r}
+# Cantidad de columnas
+print("Cantidad de columnas dPlayers 15, 16, 17, 18, 19, 20")
+print(ncol(dPlayers_15))
+print(ncol(dPlayers_16))
+print(ncol(dPlayers_17))
+print(ncol(dPlayers_18))
+print(ncol(dPlayers_19))
+print(ncol(dPlayers_20))
+
+# Compara que los nombres de las columnas sean iguales
+print("Comparación de nombres de columnas entre datasets:")
+
+print(all.equal(names(dPlayers_15), names(dPlayers_16)))
+print(all.equal(names(dPlayers_16), names(dPlayers_17)))
+print(all.equal(names(dPlayers_17), names(dPlayers_18)))
+print(all.equal(names(dPlayers_18), names(dPlayers_19)))
+print(all.equal(names(dPlayers_19), names(dPlayers_20)))
+
+# Cantidad de filas
+print("Cantidad de filas dPlayers 15, 16, 17, 18, 19 y 20")
+print(nrow(dPlayers_15))
+print(nrow(dPlayers_16))
+print(nrow(dPlayers_17))
+print(nrow(dPlayers_18))
+print(nrow(dPlayers_19))
+print(nrow(dPlayers_20))
+
+```
+## Unificación de los conjuntos de datos
+```{r}
+# Añadir la columna año a cada dataset
+dPlayers_15 <- dPlayers_15 %>%
+  mutate(anio = 2015)
+
+dPlayers_16 <- dPlayers_16 %>%
+  mutate(anio = 2016)
+
+dPlayers_17 <- dPlayers_17 %>%
+  mutate(anio = 2017)
+
+dPlayers_18 <- dPlayers_18 %>%
+  mutate(anio = 2018)
+
+dPlayers_19 <- dPlayers_19 %>%
+  mutate(anio = 2019)
+
+dPlayers_20 <- dPlayers_20 %>%
+  mutate(anio = 2020)
+
+dPlayers <- rbind(dPlayers_15,dPlayers_16, dPlayers_17, dPlayers_18, dPlayers_19, dPlayers_20)
+head(dPlayers)
+```
+
+
+## Obtener muestra de datos y tipo de dato por columna
+```{r}
+# Mostrar las primeras diez filas de los data set
+head(dPlayers)
+
+```
+
+## Descripción de datos por características específicas
+```{r}
+# Agrupación de jugadores por nacionalidad con conteo de jugadores ordenado de mayor a menor
+nacionalidades <- data.frame(nationality = unique(dPlayers$nationality))
+
+# cantidad de nacionaldiades
+nrow(nacionalidades)
+
+# Pivot de datos por año
+jugadores_nacionalidad_anio <- dPlayers %>%
+  group_by(nationality, anio) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  pivot_wider(names_from = anio, values_from = count, values_fill = 0)
+
+```
+
